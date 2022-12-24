@@ -58,14 +58,13 @@ class SimpleTrainer:
             pin_memory=True,
         )
         self.progress: tqdm = None
-        self.output_dir = self.configure_output_dir()
+        self.output_file = self.configure_output_file()
 
-    def configure_output_dir(self):
+    def configure_output_file(self):
         os.makedirs(self.config.output_dir, exist_ok=True)
         dir_id = len(os.listdir(self.config.output_dir))
-        output_dir = os.path.join(self.config.output_dir, f"{dir_id:03d}")
-        os.makedirs(output_dir, exist_ok=True)
-        return output_dir
+        output_fn = os.path.join(self.config.output_dir, f"{dir_id:03d}")
+        return output_fn
 
     def log_images(self, inputs, targets, outputs, count=3):
         if self.progress.n % self.config.output_log_interval != 0:
@@ -78,8 +77,7 @@ class SimpleTrainer:
         grid = VU.make_grid(grid.cpu(), nrow=3)  # .cpu()  pytorch/vision#6533
         grid = VF.to_pil_image(grid)
 
-        img_id = self.progress.n // self.config.output_log_interval
-        grid.save(f"{self.output_dir}/{img_id:05d}.png")
+        grid.save(f"{self.output_file}.png")
 
     def log_loss(self, loss):
         self.progress.set_postfix(loss=loss)
