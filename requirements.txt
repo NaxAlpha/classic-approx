@@ -1,0 +1,8 @@
+# torch
+# torchvision
+omegaconf
+tqdm
+# wandb
+datasets
+pillow
+opencv-python
