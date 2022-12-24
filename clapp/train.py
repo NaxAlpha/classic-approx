@@ -37,7 +37,7 @@ def get_device(name: str):
     return torch.device(name)
 
 
-class Trainer:
+class SimpleTrainer:
     def __init__(
         self,
         config: TrainConfig,
