@@ -6,4 +6,4 @@ tqdm
 datasets
 pillow
 opencv-python
-click
+fire
