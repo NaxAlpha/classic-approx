@@ -8,8 +8,8 @@ import torch.nn as nn
 import torch.utils.data as data
 import torchvision.transforms.functional as VF
 
-from model import FilterNet
-from data import ImageFilterStream
+from clapp.model import FilterNet
+from clapp.data import ImageFilterStream
 
 
 @dataclass
