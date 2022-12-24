@@ -1,11 +1,12 @@
+import os
 from dataclasses import dataclass
 
-from PIL import Image
 from tqdm import tqdm
 
 import torch
 import torch.nn as nn
 import torch.utils.data as data
+import torchvision.utils as VU
 import torchvision.transforms.functional as VF
 
 from clapp.model import FilterNet
@@ -57,24 +58,28 @@ class SimpleTrainer:
             pin_memory=True,
         )
         self.progress: tqdm = None
+        self.output_dir = self.configure_output_dir()
+
+    def configure_output_dir(self):
+        os.makedirs(self.config.output_dir, exist_ok=True)
+        dir_id = len(os.listdir(self.config.output_dir))
+        output_dir = os.path.join(self.config.output_dir, f"{dir_id:03d}")
+        os.makedirs(output_dir, exist_ok=True)
+        return output_dir
 
     def log_images(self, inputs, targets, outputs, count=3):
         if self.progress.n % self.config.output_log_interval != 0:
             return
-        grids = []
-        for i in range(count):
-            grid = torch.cat(
-                [
-                    inputs[i],
-                    targets[i].expand(3, -1, -1),
-                    outputs[i].expand(3, -1, -1),
-                ],
-                dim=2,
-            )
-            grids.append(grid)
-        grid = torch.cat(grids, dim=1)
-        grid: Image.Image = VF.to_pil_image(grid)
-        grid.save(f"{self.config.output_dir}/{self.step:05d}.png")
+
+        targets = targets.expand(-1, 3, -1, -1)
+        outputs = outputs.expand(-1, 3, -1, -1)
+        grid = torch.stack([inputs[:count], targets[:count], outputs[:count]], dim=1)
+        grid = grid.view(-1, *grid.shape[2:])
+        grid = VU.make_grid(grid.cpu(), nrow=3)  # .cpu()  pytorch/vision#6533
+        grid = VF.to_pil_image(grid)
+
+        img_id = self.progress.n // self.config.output_log_interval
+        grid.save(f"{self.output_dir}/{img_id:05d}.png")
 
     def log_loss(self, loss):
         self.progress.set_postfix(loss=loss)
@@ -89,6 +94,8 @@ class SimpleTrainer:
         self.optim.zero_grad()
         loss.backward()
         self.optim.step()
+
+        self.log_images(inputs, targets, outputs)
 
         return loss.item()
 
