@@ -1,4 +1,4 @@
-# Classic Approximation
+# **CLAPP**: **CL**assic **APP**roximation
 
 This repo contains the code for various experiments on approximating the classical computer vision algorithms using deep learning
 
