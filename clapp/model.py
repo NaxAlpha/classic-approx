@@ -28,13 +28,15 @@ class FilterBlock(nn.Module):
             config.kernel_size,
             padding=0,
         )
+        padding = config.kernel_size // 2
+        self.padd = nn.ConstantPad2d(padding, 0)
         self.norm = nn.GroupNorm(1, config.capacity)
         self.relu = SquaredReLU()
         self.alfa = nn.Parameter(torch.ones(1))
 
     def forward(self, x):
-        y = F.pad(x, (1, 1, 1, 1))  # pad before applying conv
-        y = self.conv(x)
+        y = self.padd(x)
+        y = self.conv(y)
         y = self.norm(y)
         y = self.relu(y)
         z = self.alfa * y + x  # ReZero Trick
