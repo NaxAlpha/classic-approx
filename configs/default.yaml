@@ -17,5 +17,5 @@ train:
   batch_size: 16
   num_workers: 0
   learning_rate: 0.001
-  output_dir: output
+  output_dir: outputs
   output_log_interval: 100
