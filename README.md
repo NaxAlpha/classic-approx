@@ -8,7 +8,7 @@ Example Output:
 
 <figure>
   <img
-    src="grid.png"
+    src="samples/demo1.png"
     alt="Sobel Edge Detection">
   <figcaption>
     Left: Input Image, Middle: cv2 Output, Right: Model Output
