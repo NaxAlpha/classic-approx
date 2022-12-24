@@ -16,7 +16,7 @@ import torchvision.transforms.functional as VF
 
 @dataclass
 class DataConfig:
-    name: str = "poloclub/diffusiondb" # "imagenet-1k"
+    name: str = "imagenet-1k"
     split: str = "train"
     min_buffer: int = 100
     max_buffer: int = 1000

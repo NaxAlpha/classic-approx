@@ -1,5 +1,5 @@
 data:
-  name: poloclub/diffusiondb
+  name: imagenet-1k
   split: train
   min_buffer: 100
   max_buffer: 1000
