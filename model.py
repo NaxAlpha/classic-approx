@@ -44,6 +44,7 @@ class FilterBlock(nn.Module):
 class FilterNet(nn.Module):
     def __init__(self, config: ModelConfig):
         super().__init__()
+        self.config = config
         self.prep = nn.Conv2d(  # 1x1 conv to convert from input to capacity
             config.input_channels,
             config.capacity,
