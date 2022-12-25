@@ -70,6 +70,7 @@ class SimpleTrainer:
             pin_memory=True,
         )
 
+        self.step_id = 0
         self.progress: tqdm = None
         self.output_file = self.configure_output_file()
 
@@ -80,7 +81,7 @@ class SimpleTrainer:
         return output_fn
 
     def log_images(self, inputs, targets, outputs, count=3):
-        if self.progress.n % self.config.output_log_interval != 0:
+        if self.step_id % self.config.output_log_interval != 0:
             return
 
         targets = targets.expand(-1, 3, -1, -1)
@@ -92,14 +93,16 @@ class SimpleTrainer:
 
         grid.save(f"{self.output_file}.png")
         if wandb and wandb.run:
-            wandb.log({"images": wandb.Image(grid)}, step=self.progress.n)
+            wandb.log({"images": wandb.Image(grid)}, step=self.step_id)
 
     def log_loss(self, loss):
         self.progress.set_postfix(loss=loss)
         if wandb and wandb.run:
-            wandb.log({"loss": loss}, step=self.progress.n)
+            wandb.log({"loss": loss}, step=self.step_id)
 
     def train_step(self, batch):
+        self.step_id += 1
+
         inputs, targets = batch
         inputs, targets = inputs.to(self.device), targets.to(self.device)
 
@@ -115,8 +118,11 @@ class SimpleTrainer:
         return loss.item()
 
     def train(self):
+        self.step_id = 0
+
         self.progress = tqdm(self.loader)
         self.model.train()
-        for batch in self.progress:
+        iterator = zip(range(self.config.num_iterations), self.progress)
+        for _, batch in iterator:
             loss = self.train_step(batch)
             self.log_loss(loss)
