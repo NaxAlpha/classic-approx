@@ -24,16 +24,16 @@ except ImportError:
 @dataclass
 class TrainConfig:
     device: str = "auto"
-    batch_size: int = 64
+    batch_size: int = 256
     num_workers: int = 0
-    max_iterations: int = 2000
+    max_iterations: int = 5000
     stop_l2_loss: float = 3e-3
     stop_loss_ema: float = 0.99
     learning_rate: float = 1e-3
     output_dir: str = "outputs"
     output_log_interval: int = 100
     min_lr: float = 1e-5
-    lr_cycle: int = 100
+    lr_cycle: int = 500
     loss_type: str = "all"
 
 
