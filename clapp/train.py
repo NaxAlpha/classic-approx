@@ -5,6 +5,7 @@ from tqdm import tqdm
 
 import torch
 import torch.nn as nn
+import torch.optim as optim
 import torch.utils.data as data
 import torchvision.utils as VU
 import torchvision.transforms.functional as VF
@@ -23,6 +24,7 @@ class TrainConfig:
     device: str = "auto"
     batch_size: int = 16
     num_workers: int = 0
+    num_iterations: int = 5000
     learning_rate: float = 1e-3
     output_dir: str = "outputs"
     output_log_interval: int = 100
@@ -52,9 +54,14 @@ class SimpleTrainer:
     ):
         self.config = config
         self.device = get_device(config.device)
+
         self.model = model.to(self.device)
-        self.optim = torch.optim.AdamW(self.model.parameters(), lr=config.learning_rate)
+        self.optim = optim.AdamW(
+            self.model.parameters(),
+            lr=config.learning_rate,
+        )
         self.loss_fn = nn.MSELoss()
+
         self.dataset = dataset
         self.loader = data.DataLoader(
             self.dataset,
@@ -62,6 +69,7 @@ class SimpleTrainer:
             num_workers=config.num_workers,
             pin_memory=True,
         )
+
         self.progress: tqdm = None
         self.output_file = self.configure_output_file()
 
