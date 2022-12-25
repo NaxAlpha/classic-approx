@@ -62,7 +62,8 @@ class ImageFilterStream(data.IterableDataset):
                 sobel = sobel_filter(image)
                 image, sobel = map(VF.to_tensor, (image, sobel))
                 self._buffer.append((image, sobel))
-                self._buffer = self._buffer[-self._max_buffer :]
+                if len(self._buffer) > self._max_buffer:
+                    del self._buffer[0]
 
     def __iter__(self):
         Thread(
