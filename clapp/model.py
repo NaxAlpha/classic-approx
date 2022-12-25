@@ -10,6 +10,18 @@ class SquaredReLU(nn.Module):  # for approximating polynomial activation
         return F.relu(x) ** 2
 
 
+ACTIVATION = {
+    "relu": nn.ReLU,
+    "leaky_relu": nn.LeakyReLU,
+    "squared_relu": SquaredReLU,
+    "gelu": nn.GELU,
+    "tanh": nn.Tanh,
+    "sigmoid": nn.Sigmoid,
+    "swish": nn.SiLU,
+    "none": nn.Identity,
+}
+
+
 @dataclass
 class ModelConfig:
     capacity: int = 4
@@ -17,7 +29,8 @@ class ModelConfig:
     input_channels: int = 3
     output_channels: int = 1
     kernel_size: int = 3
-    
+    activation: str = "relu"
+
 
 class FilterBlock(nn.Module):
     def __init__(self, config: ModelConfig):
@@ -31,7 +44,7 @@ class FilterBlock(nn.Module):
         padding = config.kernel_size // 2
         self.padd = nn.ConstantPad2d(padding, 0)
         self.norm = nn.GroupNorm(1, config.capacity)
-        self.relu = SquaredReLU()
+        self.relu = ACTIVATION[config.activation]()
         self.alfa = nn.Parameter(torch.ones(1))
 
     def forward(self, x):
@@ -53,10 +66,7 @@ class FilterNet(nn.Module):
             kernel_size=1,
         )
         self.main = nn.Sequential(  # stack of filter blocks
-            *[
-                FilterBlock(config)
-                for _ in range(config.num_layers)
-            ]
+            *[FilterBlock(config) for _ in range(config.num_layers)]
         )
         self.post = nn.Conv2d(  # 1x1 conv to convert from capacity to output
             config.capacity,
