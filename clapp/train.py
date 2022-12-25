@@ -11,6 +11,7 @@ import torch.utils.data as data
 import torchvision.transforms.functional as VF
 import torch.optim.lr_scheduler as lr_scheduler
 
+from clapp.ema import EMA
 from clapp.model import FilterNet
 from clapp.data import ImageFilterStream
 
@@ -25,7 +26,10 @@ class TrainConfig:
     device: str = "auto"
     batch_size: int = 64
     num_workers: int = 0
-    num_iterations: int = 500
+    max_iterations: int = 1000
+    stop_l2_loss: float = 3e-3
+    stop_consecutives: int = 10
+    stop_loss_ema: float = 0.99
     learning_rate: float = 1e-3
     output_dir: str = "outputs"
     output_log_interval: int = 100
@@ -65,14 +69,14 @@ class SimpleTrainer:
         self.device = get_device(config.device)
 
         self.model = model.to(self.device)
-        self.optim = optim.AdamW(
+        self.optim = optim.Adam(
             self.model.parameters(),
             lr=config.learning_rate,
         )
         self.scheduler = lr_scheduler.CosineAnnealingWarmRestarts(
             self.optim,
             T_0=config.lr_cycle,
-            T_mult=1,
+            T_mult=2,
             eta_min=config.min_lr,
         )
 
@@ -84,6 +88,8 @@ class SimpleTrainer:
             pin_memory=True,
         )
 
+        self.ema = EMA(config.stop_loss_ema)
+        self.stop_counter = 0
         self.step_id = 0
         self.progress: tqdm = None
         self.output_file = self.configure_output_file()
@@ -111,7 +117,7 @@ class SimpleTrainer:
             wandb.log({"images": wandb.Image(grid)}, step=self.step_id)
 
     def log_loss(self, losses):
-        loss_dict = {f"loss/{k}": v.item() for k, v in losses.items()}
+        loss_dict = {f"loss/{k}": v for k, v in losses.items()}
         self.progress.set_postfix(**loss_dict)
         if wandb and wandb.run:
             lr = self.optim.param_groups[0]["lr"]
@@ -122,6 +128,15 @@ class SimpleTrainer:
                 },
                 step=self.step_id,
             )
+
+    def stop_test(self, losses):
+        ema_losses = self.ema.update(losses)
+        if ema_losses["l2"] < self.config.stop_l2_loss:
+            self.stop_counter += 1
+        else:
+            self.stop_counter = 0
+        if self.stop_counter >= self.config.stop_consecutives:
+            return True
 
     def train_step(self, batch):
         self.step_id += 1
@@ -135,8 +150,9 @@ class SimpleTrainer:
             "l2": F.mse_loss(outputs, targets),
             "lc": log_cosh_loss(outputs, targets),
         }
-        losses['all'] = sum(losses.values())
+        losses["all"] = sum(losses.values())
         loss = losses[self.config.loss_type]
+        losses = {k: v.item() for k, v in losses.items()}
 
         self.optim.zero_grad()
         loss.backward()
@@ -145,6 +161,8 @@ class SimpleTrainer:
 
         self.log_images(inputs, targets, outputs)
         self.log_loss(losses)
+        if self.stop_test(losses):
+            raise StopIteration
 
         return losses
 
@@ -153,6 +171,11 @@ class SimpleTrainer:
 
         self.progress = tqdm(self.loader)
         self.model.train()
-        iterator = zip(range(self.config.num_iterations), self.progress)
+        iterator = zip(range(self.config.max_iterations), self.progress)
         for _, batch in iterator:
-            self.train_step(batch)
+            try:
+                losses = self.train_step(batch)
+            except StopIteration:
+                break
+
+        return self.step_id, losses
