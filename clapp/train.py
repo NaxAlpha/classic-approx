@@ -26,7 +26,7 @@ class TrainConfig:
     device: str = "auto"
     batch_size: int = 64
     num_workers: int = 0
-    max_iterations: int = 1000
+    max_iterations: int = 2000
     stop_l2_loss: float = 3e-3
     stop_consecutives: int = 10
     stop_loss_ema: float = 0.99
@@ -114,10 +114,21 @@ class SimpleTrainer:
 
         grid.save(f"{self.output_file}.png")
         if wandb and wandb.run:
-            wandb.log({"images": wandb.Image(grid)}, step=self.step_id)
+            wandb.log(
+                {
+                    "images": wandb.Image(grid),
+                },
+                step=self.step_id,
+            )
 
     def log_loss(self, losses):
         loss_dict = {f"loss/{k}": v for k, v in losses.items()}
+        loss_dict.update(
+            {
+                "stop/counter": self.stop_counter,
+                "stop/loss": self.ema.cache["l2"],
+            }
+        )
         self.progress.set_postfix(**loss_dict)
         if wandb and wandb.run:
             lr = self.optim.param_groups[0]["lr"]
@@ -150,9 +161,12 @@ class SimpleTrainer:
             "l2": F.mse_loss(outputs, targets),
             "lc": log_cosh_loss(outputs, targets),
         }
+
         losses["all"] = sum(losses.values())
         loss = losses[self.config.loss_type]
         losses = {k: v.item() for k, v in losses.items()}
+        if self.stop_test(losses):
+            raise StopIteration
 
         self.optim.zero_grad()
         loss.backward()
@@ -161,8 +175,6 @@ class SimpleTrainer:
 
         self.log_images(inputs, targets, outputs)
         self.log_loss(losses)
-        if self.stop_test(losses):
-            raise StopIteration
 
         return losses
 
@@ -174,8 +186,8 @@ class SimpleTrainer:
         iterator = zip(range(self.config.max_iterations), self.progress)
         for _, batch in iterator:
             try:
-                losses = self.train_step(batch)
+                self.train_step(batch)
             except StopIteration:
                 break
 
-        return self.step_id, losses
+        return self.step_id, self.ema.cache["l2"]
