@@ -22,6 +22,17 @@ class Config(OmegaConf):
     train: TrainConfig = TrainConfig()
 
 
+def flatten_dict(d: dict, parent_key: str = "", sep: str = "."):
+    items = []
+    for k, v in d.items():
+        new_key = parent_key + sep + k if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
+
+
 def main(config_file: str = None, **overrides):
     config: Config = OmegaConf.structured(Config)
     if config_file is not None:
@@ -32,10 +43,11 @@ def main(config_file: str = None, **overrides):
     run_group = config.run_group or str(uuid4())
     for _ in range(config.num_runs):
         if wandb is not None:
+            flat_config = flatten_dict(OmegaConf.to_container(config))
             wandb.init(
                 project="clapp",
                 group=run_group,
-                config=config,
+                config=flat_config,
             )
         model = FilterNet(config.model)
         dataset = ImageFilterStream(config.data)
