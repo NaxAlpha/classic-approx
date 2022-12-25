@@ -2,7 +2,7 @@
 # torchvision
 omegaconf
 tqdm
-# wandb
+# wandb  # requires wandb login
 datasets
 pillow
 opencv-python-headless
