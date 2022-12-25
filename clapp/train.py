@@ -12,6 +12,11 @@ import torchvision.transforms.functional as VF
 from clapp.model import FilterNet
 from clapp.data import ImageFilterStream
 
+try:
+    import wandb
+except ImportError:
+    wandb = None
+
 
 @dataclass
 class TrainConfig:
@@ -19,7 +24,7 @@ class TrainConfig:
     batch_size: int = 16
     num_workers: int = 0
     learning_rate: float = 1e-3
-    output_dir: str = "output"
+    output_dir: str = "outputs"
     output_log_interval: int = 100
 
 
@@ -74,13 +79,17 @@ class SimpleTrainer:
         outputs = outputs.expand(-1, 3, -1, -1)
         grid = torch.stack([inputs[:count], targets[:count], outputs[:count]], dim=1)
         grid = grid.view(-1, *grid.shape[2:])
-        grid = VU.make_grid(grid.cpu(), nrow=3)  # .cpu()  pytorch/vision#6533
+        grid = VU.make_grid(grid.cpu(), nrow=3)  # .cpu() because of pytorch/vision#6533
         grid = VF.to_pil_image(grid)
 
         grid.save(f"{self.output_file}.png")
+        if wandb and wandb.run:
+            wandb.log({"images": wandb.Image(grid)}, step=self.progress.n)
 
     def log_loss(self, loss):
         self.progress.set_postfix(loss=loss)
+        if wandb and wandb.run:
+            wandb.log({"loss": loss}, step=self.progress.n)
 
     def train_step(self, batch):
         inputs, targets = batch
