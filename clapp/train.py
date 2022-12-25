@@ -28,7 +28,6 @@ class TrainConfig:
     num_workers: int = 0
     max_iterations: int = 2000
     stop_l2_loss: float = 3e-3
-    stop_consecutives: int = 10
     stop_loss_ema: float = 0.99
     learning_rate: float = 1e-3
     output_dir: str = "outputs"
@@ -89,7 +88,6 @@ class SimpleTrainer:
         )
 
         self.ema = EMA(config.stop_loss_ema)
-        self.stop_counter = 0
         self.step_id = 0
         self.progress: tqdm = None
         self.output_file = self.configure_output_file()
@@ -123,12 +121,7 @@ class SimpleTrainer:
 
     def log_loss(self, losses):
         loss_dict = {f"loss/{k}": v for k, v in losses.items()}
-        loss_dict.update(
-            {
-                "stop/counter": self.stop_counter,
-                "stop/loss": self.ema.cache["l2"],
-            }
-        )
+        loss_dict.update({"loss/stop": self.ema.cache["l2"]})
         self.progress.set_postfix(**loss_dict)
         if wandb and wandb.run:
             lr = self.optim.param_groups[0]["lr"]
@@ -143,10 +136,6 @@ class SimpleTrainer:
     def stop_test(self, losses):
         ema_losses = self.ema.update(losses)
         if ema_losses["l2"] < self.config.stop_l2_loss:
-            self.stop_counter += 1
-        else:
-            self.stop_counter = 0
-        if self.stop_counter >= self.config.stop_consecutives:
             return True
 
     def train_step(self, batch):
