@@ -33,6 +33,7 @@ class ModelConfig:
     # some tricks
     flip_conv_norm: bool = True
     rezero: bool = False
+    reskip: bool = False
 
 
 class FilterBlock(nn.Module):
@@ -40,6 +41,7 @@ class FilterBlock(nn.Module):
         super().__init__()
         self.flip = config.flip_conv_norm
         self.rezero = config.rezero
+        self.reskip = config.reskip
         self.conv = nn.Conv2d(
             config.capacity,
             config.capacity,
@@ -50,7 +52,8 @@ class FilterBlock(nn.Module):
         self.padd = nn.ConstantPad2d(padding, 0)
         self.norm = nn.GroupNorm(1, config.capacity)
         self.relu = ACTIVATION[config.activation]()
-        self.alfa = nn.Parameter(torch.ones(1))
+        self.alfa = nn.Parameter(torch.ones(1, config.capacity, 1, 1))
+        self.beta = nn.Parameter(torch.zeros(1, config.capacity, 1, 1))
 
     def forward(self, x):
         if not self.flip:
@@ -62,7 +65,11 @@ class FilterBlock(nn.Module):
             y = self.padd(y)
             y = self.conv(y)
         y = self.relu(y)
-        if self.rezero:
+        if self.reskip and self.rezero:
+            z = self.alfa * y + x * self.beta
+        elif self.reskip:
+            z = y + x * self.beta
+        elif self.rezero:
             z = self.alfa * y + x
         else:
             z = y
