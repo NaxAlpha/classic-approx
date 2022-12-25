@@ -2,9 +2,9 @@ from dataclasses import dataclass
 
 from omegaconf import OmegaConf
 
-from clapp.data import DataConfig, ImageFilterStream
 from clapp.model import ModelConfig, FilterNet
 from clapp.train import TrainConfig, SimpleTrainer
+from clapp.data import DataConfig, ImageFilterStream
 
 
 @dataclass
@@ -14,8 +14,10 @@ class Config(OmegaConf):
     train: TrainConfig = TrainConfig()
 
 
-def main(config_file: str = "configs/default.yaml", **overrides):
-    config: Config = OmegaConf.load(config_file)
+def main(config_file: str = None, **overrides):
+    config: Config = OmegaConf.structured(Config)
+    if config_file is not None:
+        config = OmegaConf.merge(config, OmegaConf.load(config_file))
     config = OmegaConf.merge(config, overrides)
     config = OmegaConf.create(config)
     model = FilterNet(config.model)
