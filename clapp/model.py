@@ -46,13 +46,14 @@ class FilterBlock(nn.Module):
         self.norm = nn.GroupNorm(1, config.capacity)
         self.relu = ACTIVATION[config.activation]()
         self.alfa = nn.Parameter(torch.ones(1))
+        self.beta = nn.Parameter(torch.ones(1))
 
     def forward(self, x):
         y = self.padd(x)
         y = self.conv(y)
         y = self.norm(y)
         y = self.relu(y)
-        z = self.alfa * y + x  # ReZero Trick
+        z = self.alfa * y + x * self.beta
         return z
 
 
