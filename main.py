@@ -15,7 +15,7 @@ except ImportError:
 
 @dataclass
 class Config(OmegaConf):
-    num_runs: int = 1
+    num_runs: int = 10
     run_group: str | None = None
     data: DataConfig = DataConfig()
     model: ModelConfig = ModelConfig()
