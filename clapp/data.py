@@ -18,10 +18,10 @@ import torchvision.transforms.functional as VF
 class DataConfig:
     name: str = "imagenet-1k"
     split: str = "train"
-    min_buffer: int = 100
-    max_buffer: int = 1000
-    resize_base: int = 256
-    crop_size: int = 224
+    min_buffer: int = 1000
+    max_buffer: int = 5000
+    resize_base: int = 96
+    crop_size: int = 64
     image_key: str = "image"
 
 
@@ -53,7 +53,7 @@ class ImageFilterStream(data.IterableDataset):
         transform = VT.Compose(
             [
                 VT.Resize(self.config.resize_base),
-                VT.CenterCrop(self.config.crop_size),
+                VT.RandomCrop(self.config.crop_size),
             ]
         )
         while True:
