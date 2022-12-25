@@ -4,9 +4,9 @@ from dataclasses import dataclass
 from tqdm import tqdm
 
 import torch
-import torch.nn as nn
 import torch.optim as optim
 import torchvision.utils as VU
+import torch.nn.functional as F
 import torch.utils.data as data
 import torchvision.transforms.functional as VF
 import torch.optim.lr_scheduler as lr_scheduler
@@ -25,12 +25,13 @@ class TrainConfig:
     device: str = "auto"
     batch_size: int = 64
     num_workers: int = 0
-    num_iterations: int = 2500
+    num_iterations: int = 500
     learning_rate: float = 1e-3
     output_dir: str = "outputs"
     output_log_interval: int = 100
     min_lr: float = 1e-5
     lr_cycle: int = 100
+    loss_type: str = "all"
 
 
 def get_device(name: str):
@@ -46,6 +47,11 @@ def get_device(name: str):
             pass
         return torch.device("cpu")
     return torch.device(name)
+
+
+def log_cosh_loss(preds, targets):
+    # adapted from: https://github.com/tuantle/regression-losses-pytorch
+    return torch.mean(torch.log(torch.cosh(preds - targets + 1e-12)))
 
 
 class SimpleTrainer:
@@ -69,7 +75,6 @@ class SimpleTrainer:
             T_mult=1,
             eta_min=config.min_lr,
         )
-        self.loss_fn = nn.MSELoss()
 
         self.dataset = dataset
         self.loader = data.DataLoader(
@@ -105,14 +110,15 @@ class SimpleTrainer:
         if wandb and wandb.run:
             wandb.log({"images": wandb.Image(grid)}, step=self.step_id)
 
-    def log_loss(self, loss):
-        self.progress.set_postfix(loss=loss)
+    def log_loss(self, losses):
+        loss_dict = {f"loss/{k}": v.item() for k, v in losses.items()}
+        self.progress.set_postfix(**loss_dict)
         if wandb and wandb.run:
             lr = self.optim.param_groups[0]["lr"]
             wandb.log(
                 {
-                    "loss": loss,
                     "lr": lr,
+                    **loss_dict,
                 },
                 step=self.step_id,
             )
@@ -124,7 +130,13 @@ class SimpleTrainer:
         inputs, targets = inputs.to(self.device), targets.to(self.device)
 
         outputs = self.model(inputs)
-        loss: torch.Tensor = self.loss_fn(outputs, targets)
+        losses = {
+            "l1": F.l1_loss(outputs, targets),
+            "l2": F.mse_loss(outputs, targets),
+            "lc": log_cosh_loss(outputs, targets),
+        }
+        losses['all'] = sum(losses.values())
+        loss = losses[self.config.loss_type]
 
         self.optim.zero_grad()
         loss.backward()
@@ -132,8 +144,9 @@ class SimpleTrainer:
         self.scheduler.step()
 
         self.log_images(inputs, targets, outputs)
+        self.log_loss(losses)
 
-        return loss.item()
+        return losses
 
     def train(self):
         self.step_id = 0
@@ -142,5 +155,4 @@ class SimpleTrainer:
         self.model.train()
         iterator = zip(range(self.config.num_iterations), self.progress)
         for _, batch in iterator:
-            loss = self.train_step(batch)
-            self.log_loss(loss)
+            self.train_step(batch)
