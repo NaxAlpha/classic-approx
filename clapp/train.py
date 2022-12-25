@@ -85,7 +85,7 @@ class SimpleTrainer:
             return
 
         targets = targets.expand(-1, 3, -1, -1)
-        outputs = outputs.expand(-1, 3, -1, -1)
+        outputs = outputs.expand(-1, 3, -1, -1).clamp(0, 1)  # fixes noisy image output bug
         grid = torch.stack([inputs[:count], targets[:count], outputs[:count]], dim=1)
         grid = grid.view(-1, *grid.shape[2:])
         grid = VU.make_grid(grid.cpu(), nrow=3)  # .cpu() because of pytorch/vision#6533
