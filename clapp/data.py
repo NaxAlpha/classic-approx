@@ -35,9 +35,11 @@ def sobel_canny_filter(image: Image.Image, blur=(3, 3), kernel=3, canny=(50, 150
 def get_random_kernel(seed=None):
     if not hasattr(get_random_kernel, f"kernel_{seed}"):
         rnd = random.Random(seed)
-        ker = [rnd.random() for _ in range(27)]
+        ker = [rnd.random() for _ in range(13)]
+        ker = [*ker] + [0] + [-k for k in ker]  # sobel-like kernel
+        rnd.shuffle(ker)
         ker = torch.tensor(ker).view(1, 3, 3, 3)
-        ker = ker / ker.sum()
+        ker = ker / ker.abs().sum()
         mod = nn.Conv2d(3, 1, 3, padding=1, bias=False).requires_grad_(False)
         mod.weight.data = ker
         if seed:
@@ -46,6 +48,7 @@ def get_random_kernel(seed=None):
     return getattr(get_random_kernel, f"kernel_{seed}")
 
 
+@torch.no_grad()
 def random_filter(image: Image.Image, seed=None):
     images = VF.to_tensor(image).unsqueeze(0)
     kernel = get_random_kernel(seed)
@@ -53,6 +56,7 @@ def random_filter(image: Image.Image, seed=None):
     return VF.to_pil_image(output[0])
 
 
+@torch.no_grad()
 def random_p2_filter(image: Image.Image, seeds=(51, 15)):
     a, b = seeds
     if not hasattr(random_p2_filter, f"func_{a}_{b}"):
