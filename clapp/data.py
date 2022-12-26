@@ -59,24 +59,10 @@ def random_filter(image: Image.Image, seed=None):
 @torch.no_grad()
 def random_p2_filter(image: Image.Image, seeds=(51, 15)):
     a, b = seeds
-    if not hasattr(random_p2_filter, f"func_{a}_{b}"):
-        fmodel, params, buffers = functorch.combine_state_for_ensemble(
-            [
-                get_random_kernel(a),
-                get_random_kernel(b),
-            ]
-        )
-        func = partial(
-            functorch.vmap(fmodel, (0, 0, None)),
-            params,
-            buffers,
-        )
-        setattr(random_p2_filter, f"func_{a}_{b}", func)
-    else:
-        func = getattr(random_p2_filter, f"func_{a}_{b}")
-
+    k1, k2 = get_random_kernel(a), get_random_kernel(b)
     images = VF.to_tensor(image).unsqueeze(0)
-    output = func(images).pow(2).sum(dim=0).sqrt()
+    output = torch.stack([k1(images), k2(images)])
+    output = output.pow(2).sum(dim=0).sqrt()
     output = output / (output.max() + 1e-8)
     return VF.to_pil_image(output[0])
 
