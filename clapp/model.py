@@ -29,7 +29,7 @@ class ModelConfig:
     input_channels: int = 3
     output_channels: int = 1
     kernel_size: int = 3
-    activation: str = "relu"
+    activation: str = "gelu"
     # some tricks
     flip_conv_norm: bool = True
     rezero: bool = False
@@ -42,14 +42,13 @@ class FilterBlock(nn.Module):
         self.flip = config.flip_conv_norm
         self.rezero = config.rezero
         self.reskip = config.reskip
+        padding = config.kernel_size // 2
         self.conv = nn.Conv2d(
             config.capacity,
             config.capacity,
             config.kernel_size,
-            padding=0,
+            padding=padding,
         )
-        padding = config.kernel_size // 2
-        self.padd = nn.ConstantPad2d(padding, 0)
         self.norm = nn.GroupNorm(1, config.capacity)
         self.relu = ACTIVATION[config.activation]()
         self.alfa = nn.Parameter(torch.ones(1, config.capacity, 1, 1))
@@ -57,12 +56,10 @@ class FilterBlock(nn.Module):
 
     def forward(self, x):
         if not self.flip:
-            y = self.padd(x)
             y = self.conv(y)
             y = self.norm(y)
         else:
             y = self.norm(x)
-            y = self.padd(y)
             y = self.conv(y)
         y = self.relu(y)
         if self.reskip and self.rezero:
