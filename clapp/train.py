@@ -102,8 +102,9 @@ class SimpleTrainer:
         if self.step_id % self.config.output_log_interval != 0:
             return
 
-        targets = targets.expand(-1, 3, -1, -1)
-        outputs = outputs.expand(-1, 3, -1, -1).clamp(0, 1)
+        targets = targets.expand_as(inputs).clamp(0, 1)
+        outputs = outputs.expand_as(inputs).clamp(0, 1)
+
         # ^ fixes noisy image output bug
         grid = torch.stack([inputs[:count], targets[:count], outputs[:count]], dim=1)
         grid = grid.view(-1, *grid.shape[2:])
@@ -145,10 +146,12 @@ class SimpleTrainer:
         inputs, targets = inputs.to(self.device), targets.to(self.device)
 
         outputs = self.model(inputs)
+        # outputs = torch.sigmoid(outputs)
         losses = {
             "l1": F.l1_loss(outputs, targets),
             "l2": F.mse_loss(outputs, targets),
             "lc": log_cosh_loss(outputs, targets),
+            # "bce": F.binary_cross_entropy(outputs, targets),
         }
 
         losses["all"] = sum(losses.values())
