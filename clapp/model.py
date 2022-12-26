@@ -24,16 +24,16 @@ ACTIVATION = {
 
 @dataclass
 class ModelConfig:
-    capacity: int = 4
-    num_layers: int = 3
+    capacity: int = 8
+    num_layers: int = 4
     input_channels: int = 3
     output_channels: int = 1
     kernel_size: int = 3
     activation: str = "gelu"
     # some tricks
     flip_conv_norm: bool = True
-    rezero: bool = False
-    reskip: bool = False
+    rezero: bool = True
+    reskip: bool = True
 
 
 class FilterBlock(nn.Module):
