@@ -46,6 +46,7 @@ class ImageFilterStream(data.IterableDataset):
             use_auth_token=True,
         )
         self._buffer = []
+        self._working = True
         self._min_buffer = config.min_buffer
         self._max_buffer = config.max_buffer
 
@@ -64,6 +65,7 @@ class ImageFilterStream(data.IterableDataset):
                 self._buffer.append((image, sobel))
                 if len(self._buffer) > self._max_buffer:
                     del self._buffer[0]
+                    time.sleep(0.01)
 
     def __iter__(self):
         Thread(
@@ -77,5 +79,14 @@ class ImageFilterStream(data.IterableDataset):
         if seed:
             torch.manual_seed(seed)
         rnd = random.Random(seed)
-        while True:
-            yield rnd.choice(self._buffer)
+        # ---
+        self._working = True
+        while self._working:
+            try:
+                yield rnd.choice(self._buffer)
+            except:
+                break
+        self.stop()
+
+    def stop(self):
+        self._working = False
