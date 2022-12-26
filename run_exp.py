@@ -18,8 +18,8 @@ except ImportError:
 @dataclass
 class Config(OmegaConf):
     num_runs: int = 5
-    num_parallel_runs: int = 0
-    run_group: Union[str, None] = None
+    num_parallel_runs: int = 1
+    experiment_name: Union[str, None] = None
     data: DataConfig = DataConfig()
     model: ModelConfig = ModelConfig()
     train: TrainConfig = TrainConfig()
@@ -59,7 +59,7 @@ def main(config_file: str = None, **overrides):
     config = OmegaConf.merge(config, overrides)
     config = OmegaConf.create(config)
 
-    run_group = config.run_group or str(uuid4())
+    run_group = config.experiment_name or str(uuid4())
     if config.num_parallel_runs == 0:
         for _ in range(config.num_runs):
             worker_func(run_group, config)
