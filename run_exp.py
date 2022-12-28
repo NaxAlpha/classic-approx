@@ -17,11 +17,21 @@ except ImportError:
 
 @dataclass
 class Config(OmegaConf):
-    num_runs: int = 1
+    num_runs: int = 10
+    num_resolutions: int = 2
     num_parallel_runs: int = 0
     experiment_name: Union[str, None] = None
-    train_data: DataConfig = DataConfig(split="train")
-    valid_data: DataConfig = DataConfig(split="validation")
+    train_data: DataConfig = DataConfig(
+        split="train",
+        resize_base=48,
+        crop_size=32,
+    )
+    valid_data: DataConfig = DataConfig(
+        split="validation",
+        resize_base=256,
+        crop_size=224,
+        buffer_delay=0.2,
+    )
     model: ModelConfig = ModelConfig()
     train: TrainConfig = TrainConfig()
 
@@ -46,21 +56,31 @@ def worker_func(run_group, config: Config):
             config=flat_config,
         )
     model = FilterNet(config.model)
+    param = sum(p.numel() for p in model.parameters())
+    print(f"==> Number of model parameters: {param}")
     train_dataset = ImageFilterStream(config.train_data)
     valid_dataset = ImageFilterStream(config.valid_data)
     last_step_id = 0
-    for _ in range(4):
-        print("Resizing...")
-        config.train_data.resize_base *= 2
-        config.train_data.crop_size *= 2
-        trainer = SimpleTrainer(
-            config=config.train,
-            model=model,
-            train_dataset=train_dataset,
-            valid_dataset=valid_dataset,
-        )
+    resize_init = config.train_data.resize_base
+    crop_init = config.train_data.crop_size
+    trainer = SimpleTrainer(
+        config=config.train,
+        model=model,
+        train_dataset=train_dataset,
+        valid_dataset=valid_dataset,
+    )
+    for _ in range(config.num_resolutions):
+        resize_init *= 2
+        crop_init *= 2
+        # ---
+        train_dataset.update_resolution(resize_init, crop_init)
+        next(trainer.train_loader)
+        # ---
+        config.train.batch_size //= 2
         trainer.step_id = last_step_id
         trainer.train()
+        last_step_id = trainer.step_id
+        config.train.min_iterations += last_step_id
     if wandb is not None:
         wandb.finish()
 
