@@ -25,8 +25,9 @@ class TrainConfig:
     device: str = "auto"
     batch_size: int = 256
     num_workers: int = 0
+    min_iterations: int = 500
     max_iterations: int = 5000
-    stop_l2_loss: float = 3e-3  # 3e-3
+    stop_l2_loss: float = 5e-3  # 3e-3
     stop_loss_ema: float = 0.95
     learning_rate: float = 1e-3
     output_dir: str = "outputs"
@@ -108,6 +109,7 @@ class SimpleTrainer:
         self.step_id = 0
         self.progress: tqdm = None
         self.l2_ema = None
+        self.metrics = {}
         self.output_file = self.configure_output_file()
 
     def configure_output_file(self):
@@ -153,7 +155,8 @@ class SimpleTrainer:
 
     def log_losses(self, losses, prefix):
         loss_dict = {f"{prefix}/loss/{k}": v.item() for k, v in losses.items()}
-        self.progress.set_postfix(**loss_dict)
+        self.metrics.update(loss_dict)
+        self.progress.set_postfix(**self.metrics)
         if wandb and wandb.run:
             lr = self.optim.param_groups[0]["lr"]
             wandb.log(
@@ -197,11 +200,18 @@ class SimpleTrainer:
         self.progress = tqdm()
         self.model.train()
         for _ in range(self.config.max_iterations):
-            if self.step_id % self.config.validation_interval == 0:
+            if (
+                self.step_id % self.config.validation_interval == 0
+                or self.l2_ema is None
+            ):
                 self.model.eval()
                 self.valid_step()
                 self.model.train()
             self.train_step()
             self.progress.update(1)
-            if self.l2_ema < self.config.stop_l2_loss:
+            if (
+                self.step_id > self.config.min_iterations
+                and self.l2_ema < self.config.stop_l2_loss
+            ):
                 break
+        self.progress.close()
