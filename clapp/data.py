@@ -91,48 +91,28 @@ class ImageFilterStream(data.IterableDataset):
     def __init__(self, config: DataConfig):
         super().__init__()
         self.config = config
-        self.dataset = datasets.load_dataset(
-            config.name,
-            split=config.split,
-            streaming=True,
-            use_auth_token=True,
-        )
-        self._buffer = []
-        self._min_buffer = config.min_buffer
-        self._max_buffer = config.max_buffer
-
-    def downloader(self):
-        transform = VT.Compose(
+        self.transform = VT.Compose(
             [
                 VT.Resize(self.config.resize_base),
                 VT.RandomCrop(self.config.crop_size),
             ]
         )
-        while True:
-            for x in self.dataset:
-                image = transform(x[self.config.image_key].convert("RGB"))
-                sobel = target_filters[self.config.target_filter](image)
-                image, sobel = map(VF.to_tensor, (image, sobel))
-                self._buffer.append((image, sobel))
-                if len(self._buffer) > self._max_buffer:
-                    del self._buffer[0]
-                    time.sleep(0.1)
 
     def __iter__(self):
-        Thread(
-            target=self.downloader,
-            daemon=True,
-        ).start()
-        while len(self._buffer) < self._min_buffer:
-            time.sleep(0.01)
-        worker_info = data.get_worker_info()
-        seed = worker_info.seed if worker_info else None
-        if seed:
-            torch.manual_seed(seed)
-        rnd = random.Random(seed)
-        # ---
         while True:
-            try:
-                yield rnd.choice(self._buffer)
-            except:
-                break
+            winfo = data.get_worker_info()
+            seed = winfo.seed if winfo else None
+            dataset = datasets.load_dataset(
+                self.config.name,
+                split=self.config.split,
+                streaming=True,
+                use_auth_token=True,
+            ).shuffle(
+                seed=seed,
+                buffer_size=self.config.min_buffer,
+            )
+            for x in dataset:
+                image = self.transform(x[self.config.image_key].convert("RGB"))
+                sobel = target_filters[self.config.target_filter](image)
+                image, sobel = map(VF.to_tensor, (image, sobel))
+                yield image, sobel
