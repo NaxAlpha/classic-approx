@@ -11,7 +11,6 @@ import torch.utils.data as data
 import torchvision.transforms.functional as VF
 import torch.optim.lr_scheduler as lr_scheduler
 
-from clapp.ema import EMA
 from clapp.model import FilterNet
 from clapp.data import ImageFilterStream
 
@@ -27,11 +26,12 @@ class TrainConfig:
     batch_size: int = 256
     num_workers: int = 0
     max_iterations: int = 5000
-    stop_l2_loss: float = 3e-3
+    stop_l2_loss: float = 1e-3  # 3e-3
     stop_loss_ema: float = 0.99
     learning_rate: float = 1e-3
     output_dir: str = "outputs"
     output_log_interval: int = 100
+    validation_interval: int = 5
     min_lr: float = 1e-5
     lr_cycle: int = 500
     loss_type: str = "all"
@@ -57,12 +57,19 @@ def log_cosh_loss(preds, targets):
     return torch.mean(torch.log(torch.cosh(preds - targets + 1e-12)))
 
 
+def exponential_moving_average(new, prev=None, alpha=0.99):
+    if prev is None:
+        return new
+    return alpha * prev + (1 - alpha) * new
+
+
 class SimpleTrainer:
     def __init__(
         self,
         config: TrainConfig,
         model: FilterNet,
-        dataset: ImageFilterStream,
+        train_dataset: ImageFilterStream,
+        valid_dataset: ImageFilterStream,
     ):
         self.config = config
         self.device = get_device(config.device)
@@ -79,17 +86,28 @@ class SimpleTrainer:
             eta_min=config.min_lr,
         )
 
-        self.dataset = dataset
-        self.loader = data.DataLoader(
-            self.dataset,
-            batch_size=config.batch_size,
-            num_workers=config.num_workers,
-            pin_memory=True,
+        self.train_dataset = train_dataset
+        self.train_loader = iter(
+            data.DataLoader(
+                self.train_dataset,
+                batch_size=config.batch_size,
+                num_workers=config.num_workers,
+                pin_memory=True,
+            )
+        )
+        self.valid_dataset = valid_dataset
+        self.valid_loader = iter(
+            data.DataLoader(
+                self.valid_dataset,
+                batch_size=config.batch_size,
+                num_workers=config.num_workers,
+                pin_memory=True,
+            )
         )
 
-        self.ema = EMA(config.stop_loss_ema)
         self.step_id = 0
         self.progress: tqdm = None
+        self.l2_ema = None
         self.output_file = self.configure_output_file()
 
     def configure_output_file(self):
@@ -120,9 +138,21 @@ class SimpleTrainer:
                 step=self.step_id,
             )
 
-    def log_loss(self, losses):
-        loss_dict = {f"loss/{k}": v for k, v in losses.items()}
-        loss_dict.update({"loss/stop": self.ema.cache["l2"]})
+    def step(self, batch):
+        inputs, targets = batch
+        inputs, targets = inputs.to(self.device), targets.to(self.device)
+
+        outputs = self.model(inputs)
+        losses = {
+            "l1": F.l1_loss(outputs, targets),
+            "l2": F.mse_loss(outputs, targets),
+            "lc": log_cosh_loss(outputs, targets),
+        }
+        losses['all'] = sum(losses.values())
+        return losses, outputs
+
+    def log_losses(self, losses, prefix):
+        loss_dict = {f"{prefix}/loss/{k}": v.item() for k, v in losses.items()}
         self.progress.set_postfix(**loss_dict)
         if wandb and wandb.run:
             lr = self.optim.param_groups[0]["lr"]
@@ -134,52 +164,43 @@ class SimpleTrainer:
                 step=self.step_id,
             )
 
-    def stop_test(self, losses):
-        ema_losses = self.ema.update(losses)
-        if ema_losses["l2"] < self.config.stop_l2_loss:
-            return True
-
-    def train_step(self, batch):
+    def train_step(self):
         self.step_id += 1
-
-        inputs, targets = batch
-        inputs, targets = inputs.to(self.device), targets.to(self.device)
-
-        outputs = self.model(inputs)
-        # outputs = torch.sigmoid(outputs)
-        losses = {
-            "l1": F.l1_loss(outputs, targets),
-            "l2": F.mse_loss(outputs, targets),
-            "lc": log_cosh_loss(outputs, targets),
-            # "bce": F.binary_cross_entropy(outputs, targets),
-        }
-
-        losses["all"] = sum(losses.values())
+        batch = next(self.train_loader)
+        losses, _ = self.step(batch)
         loss = losses[self.config.loss_type]
-        losses = {k: v.item() for k, v in losses.items()}
-        if self.stop_test(losses):
-            raise StopIteration
 
         self.optim.zero_grad()
         loss.backward()
         self.optim.step()
         self.scheduler.step()
 
-        self.log_images(inputs, targets, outputs)
-        self.log_loss(losses)
+        self.log_losses(losses, "train")
 
-        return losses
+    @torch.no_grad()
+    def valid_step(self):
+        batch = next(self.valid_loader)
+        losses, outputs = self.step(batch)
+
+        self.l2_ema = exponential_moving_average(
+            new=losses["l2"].item(),
+            prev=self.l2_ema,
+            alpha=self.config.stop_loss_ema,
+        )
+
+        losses["stop"] = torch.tensor(self.l2_ema) # workaround
+        self.log_losses(losses, "valid")
+
+        self.log_images(*batch, outputs)
 
     def train(self):
-        self.step_id = 0
-
-        self.progress = tqdm(self.loader)
+        self.progress = tqdm()
         self.model.train()
-        iterator = zip(range(self.config.max_iterations), self.progress)
-        for _, batch in iterator:
-            try:
-                self.train_step(batch)
-            except StopIteration:
+        for _ in range(self.config.max_iterations):
+            self.train_step()
+            if self.step_id % self.config.validation_interval == 0:
+                self.model.eval()
+                self.valid_step()
+                self.model.train()
+            if self.l2_ema < self.config.stop_l2_loss:
                 break
-
-        return self.step_id, self.ema.cache["l2"]

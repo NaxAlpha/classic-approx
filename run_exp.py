@@ -17,10 +17,11 @@ except ImportError:
 
 @dataclass
 class Config(OmegaConf):
-    num_runs: int = 5
-    num_parallel_runs: int = 1
+    num_runs: int = 1
+    num_parallel_runs: int = 0
     experiment_name: Union[str, None] = None
-    data: DataConfig = DataConfig()
+    train_data: DataConfig = DataConfig(split="train")
+    valid_data: DataConfig = DataConfig(split="validation")
     model: ModelConfig = ModelConfig()
     train: TrainConfig = TrainConfig()
 
@@ -45,9 +46,21 @@ def worker_func(run_group, config: Config):
             config=flat_config,
         )
     model = FilterNet(config.model)
-    dataset = ImageFilterStream(config.data)
-    trainer = SimpleTrainer(config.train, model, dataset)
-    trainer.train()
+    train_dataset = ImageFilterStream(config.train_data)
+    valid_dataset = ImageFilterStream(config.valid_data)
+    last_step_id = 0
+    for _ in range(4):
+        print("Resizing...")
+        config.train_data.resize_base *= 2
+        config.train_data.crop_size *= 2
+        trainer = SimpleTrainer(
+            config=config.train,
+            model=model,
+            train_dataset=train_dataset,
+            valid_dataset=valid_dataset,
+        )
+        trainer.step_id = last_step_id
+        trainer.train()
     if wandb is not None:
         wandb.finish()
 
@@ -65,11 +78,13 @@ def main(config_file: str = None, **overrides):
             worker_func(run_group, config)
     else:
         with ProcessPoolExecutor(max_workers=config.num_parallel_runs) as executor:
-            futures = []
-            for _ in range(config.num_runs):
-                futures.append(executor.submit(worker_func, run_group, config))
-            for future in futures:
-                future.result()
+            list(
+                executor.map(
+                    worker_func,
+                    [run_group] * config.num_runs,
+                    [config] * config.num_runs,
+                )
+            )
 
 
 if __name__ == "__main__":

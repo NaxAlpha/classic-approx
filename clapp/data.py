@@ -82,9 +82,10 @@ class DataConfig:
     min_buffer: int = 1000
     max_buffer: int = 5000
     resize_base: int = 96
+    buffer_delay: float = 0.1
     crop_size: int = 64
     image_key: str = "image"
-    target_filter: str = "random2_51_15"
+    target_filter: str = "sobel_3"
 
 
 class ImageFilterStream(data.IterableDataset):
@@ -116,7 +117,7 @@ class ImageFilterStream(data.IterableDataset):
                 self._buffer.append((image, sobel))
                 if len(self._buffer) > self._max_buffer:
                     del self._buffer[0]
-                    time.sleep(0.1)
+                    time.sleep(self.config.buffer_delay)
 
     def __iter__(self):
         Thread(
