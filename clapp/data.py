@@ -10,7 +10,6 @@ import numpy as np
 from PIL import Image
 
 import torch
-import functorch
 import torch.nn as nn
 import torch.utils.data as data
 import torchvision.transforms as VT
@@ -79,11 +78,11 @@ target_filters = {
 class DataConfig:
     name: str = "imagenet-1k"
     split: str = "train"
-    min_buffer: int = 1000
-    max_buffer: int = 5000
-    resize_base: int = 96
+    min_buffer: int = 2000
+    max_buffer: int = 8000
+    resize_base: int = 48
     buffer_delay: float = 0.1
-    crop_size: int = 64
+    crop_size: int = 32
     image_key: str = "image"
     target_filter: str = "sobel_3"
 
@@ -105,7 +104,7 @@ class ImageFilterStream(data.IterableDataset):
     def update_resolution(self, resize_base, crop_size):
         self.config.resize_base = resize_base
         self.config.crop_size = crop_size
-        self._buffer.clear()
+        del self._buffer[:]
 
     def downloader(self):
         while True:
@@ -139,6 +138,6 @@ class ImageFilterStream(data.IterableDataset):
             while len(self._buffer) < self._min_buffer:
                 time.sleep(0.01)
             try:
-                yield rnd.choice(self._buffer)
+                yield rnd.choice(self._buffer[1:])
             except:
                 break
