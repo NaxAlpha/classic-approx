@@ -26,8 +26,8 @@ class TrainConfig:
     batch_size: int = 256
     num_workers: int = 0
     max_iterations: int = 5000
-    stop_l2_loss: float = 1e-3  # 3e-3
-    stop_loss_ema: float = 0.99
+    stop_l2_loss: float = 3e-3  # 3e-3
+    stop_loss_ema: float = 0.95
     learning_rate: float = 1e-3
     output_dir: str = "outputs"
     output_log_interval: int = 100
@@ -148,7 +148,7 @@ class SimpleTrainer:
             "l2": F.mse_loss(outputs, targets),
             "lc": log_cosh_loss(outputs, targets),
         }
-        losses['all'] = sum(losses.values())
+        losses["all"] = sum(losses.values())
         return losses, outputs
 
     def log_losses(self, losses, prefix):
@@ -188,7 +188,7 @@ class SimpleTrainer:
             alpha=self.config.stop_loss_ema,
         )
 
-        losses["stop"] = torch.tensor(self.l2_ema) # workaround
+        losses["stop"] = torch.tensor(self.l2_ema)  # workaround
         self.log_losses(losses, "valid")
 
         self.log_images(*batch, outputs.cpu())
@@ -202,5 +202,6 @@ class SimpleTrainer:
                 self.valid_step()
                 self.model.train()
             self.train_step()
+            self.progress.update(1)
             if self.l2_ema < self.config.stop_l2_loss:
                 break
