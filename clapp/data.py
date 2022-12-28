@@ -102,15 +102,20 @@ class ImageFilterStream(data.IterableDataset):
         self._min_buffer = config.min_buffer
         self._max_buffer = config.max_buffer
 
+    def update_resolution(self, resize_base, crop_size):
+        self.config.resize_base = resize_base
+        self.config.crop_size = crop_size
+        self._buffer.clear()
+
     def downloader(self):
-        transform = VT.Compose(
-            [
-                VT.Resize(self.config.resize_base),
-                VT.RandomCrop(self.config.crop_size),
-            ]
-        )
         while True:
             for x in self.dataset:
+                transform = VT.Compose(
+                    [
+                        VT.Resize(self.config.resize_base),
+                        VT.RandomCrop(self.config.crop_size),
+                    ]
+                )
                 image = transform(x[self.config.image_key].convert("RGB"))
                 sobel = target_filters[self.config.target_filter](image)
                 image, sobel = map(VF.to_tensor, (image, sobel))
@@ -124,8 +129,6 @@ class ImageFilterStream(data.IterableDataset):
             target=self.downloader,
             daemon=True,
         ).start()
-        while len(self._buffer) < self._min_buffer:
-            time.sleep(0.01)
         worker_info = data.get_worker_info()
         seed = worker_info.seed if worker_info else None
         if seed:
@@ -133,6 +136,8 @@ class ImageFilterStream(data.IterableDataset):
         rnd = random.Random(seed)
         # ---
         while True:
+            while len(self._buffer) < self._min_buffer:
+                time.sleep(0.01)
             try:
                 yield rnd.choice(self._buffer)
             except:
