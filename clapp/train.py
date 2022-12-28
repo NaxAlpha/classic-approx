@@ -165,7 +165,6 @@ class SimpleTrainer:
             )
 
     def train_step(self):
-        self.step_id += 1
         batch = next(self.train_loader)
         losses, _ = self.step(batch)
         loss = losses[self.config.loss_type]
@@ -176,6 +175,7 @@ class SimpleTrainer:
         self.scheduler.step()
 
         self.log_losses(losses, "train")
+        self.step_id += 1
 
     @torch.no_grad()
     def valid_step(self):
@@ -197,10 +197,10 @@ class SimpleTrainer:
         self.progress = tqdm()
         self.model.train()
         for _ in range(self.config.max_iterations):
-            self.train_step()
             if self.step_id % self.config.validation_interval == 0:
                 self.model.eval()
                 self.valid_step()
                 self.model.train()
+            self.train_step()
             if self.l2_ema < self.config.stop_l2_loss:
                 break
