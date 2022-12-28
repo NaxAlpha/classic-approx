@@ -191,7 +191,7 @@ class SimpleTrainer:
         losses["stop"] = torch.tensor(self.l2_ema) # workaround
         self.log_losses(losses, "valid")
 
-        self.log_images(*batch, outputs)
+        self.log_images(*batch, outputs.cpu())
 
     def train(self):
         self.progress = tqdm()
