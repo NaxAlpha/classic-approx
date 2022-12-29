@@ -23,8 +23,8 @@ class Config(OmegaConf):
     experiment_name: Union[str, None] = None
     train_data: DataConfig = DataConfig(
         split="train",
-        resize_base=48,
-        crop_size=32,
+        resize_base=96,
+        crop_size=64,
     )
     valid_data: DataConfig = DataConfig(
         split="validation",
@@ -63,19 +63,19 @@ def train_model(config: Config, verbose: bool = True):
         verbose=verbose,
     )
     for i in range(config.num_resolutions):
-        resize_init *= 2
-        crop_init *= 2
-        # ---
-        train_dataset.update_resolution(resize_init, crop_init)
-        next(trainer.train_loader)
-        # ---
-        config.train.batch_size //= 2
         trainer.step_id = last_step_id
         trainer.train(
             desc=f"Training {i + 1}/{config.num_resolutions}",
         )
         last_step_id = trainer.step_id
         config.train.min_iterations += last_step_id
+        # --- Workaround for doubling the resolution
+        resize_init *= 2
+        crop_init *= 2
+        train_dataset.update_resolution(resize_init, crop_init)
+        next(trainer.train_loader)
+        config.train.batch_size //= 2
+        # ---
     return model
 
 

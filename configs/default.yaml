@@ -1,15 +1,15 @@
 num_runs: 10                # how many times to run the experiment, will be ignored if not using `run_exp.py`
 num_resolutions: 2          # how many resolutions to train at (only for training data)
 num_parallel_runs: 1        # how many runs to run in parallel, will be ignored if not using `run_exp.py`
-experiment_name: null       # name of the experiment (if null, use generate uuid)
+experiment_name: null       # name of the experiment (if null, will generate uuid)
 train_data:                 # configuration for training data
   name: imagenet-1k         # huggingface dataset name: https://huggingface.co/datasets/imagenet-1k
   split: train              # which split to use
   min_buffer: 2000          # minimum buffer size before starting training
   max_buffer: 8000          # maximum buffer size to keep in memory
-  resize_base: 48           # initial resolution for image to be resized, will double for each resolution given by `num_resolutions`
+  resize_base: 96           # initial resolution for image to be resized, will double for each resolution given by `num_resolutions`
   buffer_delay: 0.1         # Delay before pushing to buffer when it is full
-  crop_size: 32             # initial crop size for image to be cropped, will double for each resolution given by `num_resolutions`
+  crop_size: 64             # initial crop size for image to be cropped, will double for each resolution given by `num_resolutions`
   image_key: image          # name of the key in the dataset that contains the image
   target_filter: sobel_3    # filter to apply to the image to get the target, see `clapp/data.py` for more details
 valid_data:                 # configuration for validation data

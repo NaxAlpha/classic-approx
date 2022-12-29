@@ -82,7 +82,7 @@ Here is explanation of each parameter in the default configuration file: (from `
 num_runs: 10                # how many times to run the experiment, will be ignored if not using `run_exp.py` (good for confidence interval of loss curves)
 num_resolutions: 2          # how many resolutions to train at (only for training data)
 num_parallel_runs: 1        # how many runs to run in parallel, will be ignored if not using `run_exp.py`
-experiment_name: null       # name of the experiment (if null, use generate uuid)
+experiment_name: null       # name of the experiment (if null, will generate uuid)
 train_data:                 # configuration for training data
   name: imagenet-1k         # huggingface dataset name: https://huggingface.co/datasets/imagenet-1k
   split: train              # which split to use
