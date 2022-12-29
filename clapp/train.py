@@ -162,8 +162,10 @@ class SimpleTrainer:
     def log_losses(self, losses, prefix):
         loss_dict = {f"{prefix}/loss/{k}": v.item() for k, v in losses.items()}
         self.metrics.update(loss_dict)
-        if self.progress:
+        if self.verbose:
             self.progress.set_postfix(**self.metrics)
+        else:
+            self.progress.set_postfix(dict(stop_loss=self.l2_ema))
         if self.verbose and wandb and wandb.run:
             lr = self.optim.param_groups[0]["lr"]
             wandb.log(
@@ -204,8 +206,7 @@ class SimpleTrainer:
         self.log_images(*batch, outputs.cpu())
 
     def train(self):
-        if self.verbose:
-            self.progress = tqdm()
+        self.progress = tqdm()
         self.model.train()
         for _ in range(self.config.max_iterations):
             if (
@@ -216,12 +217,10 @@ class SimpleTrainer:
                 self.valid_step()
                 self.model.train()
             self.train_step()
-            if self.progress:
-                self.progress.update(1)
+            self.progress.update(1)
             if (
                 self.step_id > self.config.min_iterations
                 and self.l2_ema < self.config.stop_l2_loss
             ):
                 break
-        if self.progress:
-            self.progress.close()
+        self.progress.close()
