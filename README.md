@@ -190,3 +190,33 @@ train:                      # configuration for training
   - [x] Sobel 5x5 Filter with Canny
   - [x] Random 3x3 Convolutional Filter
   - [x] Random 3x3 Sobel-like Filter
+- Model:
+  - [x] Basic Image to Image Model
+  - [x] ReZero Residual Blocks
+  - [x] Reskip Residual Blocks
+  - [x] Various Activations
+  - [x] Swap Normalization and Convolution
+  - [ ] Downsample & Upsample Blocks
+  - [ ] [U<sup>2</sup>Net](https://github.com/xuebinqin/U-2-Net/blob/master/model/u2net.py) model support
+  - [ ] Other standard image to image models
+  - [x] Ultra Optimized for Parameter Count (currently 2505 parameters)
+  - [ ] Optimization for Convergence Speed
+  - [ ] Optimization for Inferencing Speed
+- Training:
+  - [x] Basic Training Loop
+  - [x] Wandb Integration
+  - [x] Learning Rate Scheduler
+  - [x] Stopping Criteria
+  - [x] Multi-resolution Training
+  - [ ] Optuna for Hyperparameter Tuning
+  - [ ] Mixed Precision Training
+- UX:
+  - [x] Configuration Management
+  - [x] Basic CLI for Experimentation
+  - [x] Basic CLI for Training & Inference
+- Ops:
+  - [x] CPU Dockerfile
+  - [ ] GPU Dockerfile
+  - [ ] Docs for Running Docker
+  - [ ] Kubernetes Training
+  - [ ] Kubernetes Inference
