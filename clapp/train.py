@@ -71,6 +71,7 @@ class SimpleTrainer:
         model: FilterNet,
         train_dataset: ImageFilterStream,
         valid_dataset: ImageFilterStream,
+        verbose: bool = True,
     ):
         self.config = config
         self.device = get_device(config.device)
@@ -106,6 +107,7 @@ class SimpleTrainer:
             )
         )
 
+        self.verbose = verbose
         self.step_id = 0
         self.progress: tqdm = None
         self.l2_ema = None
@@ -113,6 +115,8 @@ class SimpleTrainer:
         self.output_file = self.configure_output_file()
 
     def configure_output_file(self):
+        if not self.verbose:
+            return
         os.makedirs(self.config.output_dir, exist_ok=True)
         dir_id = len(os.listdir(self.config.output_dir))
         output_fn = os.path.join(self.config.output_dir, f"{dir_id:03d}")
@@ -120,6 +124,8 @@ class SimpleTrainer:
 
     def log_images(self, inputs, targets, outputs, count=3):
         if self.step_id % self.config.output_log_interval != 0:
+            return
+        if not self.verbose:
             return
 
         targets = targets.expand_as(inputs).clamp(0, 1)
@@ -132,7 +138,7 @@ class SimpleTrainer:
         grid = VF.to_pil_image(grid)
 
         grid.save(f"{self.output_file}.png")
-        if wandb and wandb.run:
+        if self.verbose and wandb and wandb.run:
             wandb.log(
                 {
                     "images": wandb.Image(grid),
@@ -156,8 +162,9 @@ class SimpleTrainer:
     def log_losses(self, losses, prefix):
         loss_dict = {f"{prefix}/loss/{k}": v.item() for k, v in losses.items()}
         self.metrics.update(loss_dict)
-        self.progress.set_postfix(**self.metrics)
-        if wandb and wandb.run:
+        if self.progress:
+            self.progress.set_postfix(**self.metrics)
+        if self.verbose and wandb and wandb.run:
             lr = self.optim.param_groups[0]["lr"]
             wandb.log(
                 {
@@ -197,7 +204,8 @@ class SimpleTrainer:
         self.log_images(*batch, outputs.cpu())
 
     def train(self):
-        self.progress = tqdm()
+        if self.verbose:
+            self.progress = tqdm()
         self.model.train()
         for _ in range(self.config.max_iterations):
             if (
@@ -208,10 +216,12 @@ class SimpleTrainer:
                 self.valid_step()
                 self.model.train()
             self.train_step()
-            self.progress.update(1)
+            if self.progress:
+                self.progress.update(1)
             if (
                 self.step_id > self.config.min_iterations
                 and self.l2_ema < self.config.stop_l2_loss
             ):
                 break
-        self.progress.close()
+        if self.progress:
+            self.progress.close()
