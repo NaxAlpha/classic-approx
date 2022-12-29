@@ -4,6 +4,59 @@ This repo contains the code for various experiments on approximating the classic
 
 ## Usage
 
+Following is setup for running on local machine. 
+<!-- If you plan to run via docker, skip to [docker section](#docker). -->
+
+### Python & PyTorch
+
+This code is compatible with Python >= 3.7. It has been tested with PyTorch 1.13 with Cuda 11.7. To install PyTorch, see [here](https://pytorch.org/get-started/locally/).
+
+### Install other Dependencies
+
+To install dependencies, run:
+
+```bash
+pip install -r requirements.txt
+```
+
+If you want to run experiments, you will also need to install [wandb](https://wandb.ai/site) for logging by:
+
+```bash
+pip install wandb
+wandb login <your wandb api key>
+```
+
+You can get your wandb api key from [here](https://wandb.ai/authorize).
+
+### Dataset Setup
+
+If you are going to use `imagenet-1k` dataset (which is default), you will need to Agree to the [ImageNet Terms of Use](https://huggingface.co/datasets/imagenet-1k) and then logging into your HuggingFace account by:
+
+```bash
+huggingface-cli login
+```
+
+### Running Experiments
+
+To run experiments, you can customize the configuration in `configs/default.yaml` or create a new configuration file and then run:
+
+```bash
+python run_exp.py --config-file <path to config file> [OPTIONS]
+```
+
+### Running Training & Inference
+
+To train and save the model, run:
+
+```bash
+python main.py train <model-save-path> [--config-file <path to config file>] [OPTIONS]
+```
+
+To run inference, run:
+
+```bash
+python main.py infer <model-save-path> <input-image-file> <output-image-file> [--config-file <path to config file>] [OPTIONS]
+```
 
 ## Code organization
 
