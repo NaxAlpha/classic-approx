@@ -213,6 +213,7 @@ train:                      # configuration for training
   - [x] Multi-resolution Training
   - [ ] Optuna for Hyperparameter Tuning
   - [ ] Mixed Precision Training
+  - [ ] More losses
 - UX:
   - [x] Configuration Management
   - [x] Basic CLI for Experimentation
