@@ -190,10 +190,13 @@ train:                      # configuration for training
   - [x] Sobel 5x5 Filter with Canny
   - [x] Random 3x3 Convolutional Filter
   - [x] Random 3x3 Sobel-like Filter
+  - [ ] Filter Customizations
+  - [ ] Other Standard Filters
+  - [ ] Accelerating Filters with GPU & Batching
 - Model:
   - [x] Basic Image to Image Model
   - [x] ReZero Residual Blocks
-  - [x] Reskip Residual Blocks
+  - [x] Reskip Residual Blocks (custom trick)
   - [x] Various Activations
   - [x] Swap Normalization and Convolution
   - [ ] Downsample & Upsample Blocks
@@ -220,3 +223,8 @@ train:                      # configuration for training
   - [ ] Docs for Running Docker
   - [ ] Kubernetes Training
   - [ ] Kubernetes Inference
+- Docs:
+  - [x] Basic Docs (this README)
+  - [ ] Detailed docs for each module
+  - [ ] Report on the experiments
+  - [ ] Ablation study generation
