@@ -19,7 +19,7 @@ except ImportError:
 class Config(OmegaConf):
     num_runs: int = 10
     num_resolutions: int = 2
-    num_parallel_runs: int = 0
+    num_parallel_runs: int = 1
     experiment_name: Union[str, None] = None
     train_data: DataConfig = DataConfig(
         split="train",
