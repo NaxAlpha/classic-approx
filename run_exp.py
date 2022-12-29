@@ -36,6 +36,47 @@ class Config(OmegaConf):
     train: TrainConfig = TrainConfig()
 
 
+def load_config(config_file: str, overrides: dict) -> Config:
+    config = OmegaConf.structured(Config)
+    if config_file is not None:
+        config = OmegaConf.load(config_file)
+    config = OmegaConf.merge(config, overrides)
+    config = OmegaConf.create(config)
+    return config
+
+
+def train_model(config: Config, verbose: bool = True):
+    model = FilterNet(config.model)
+    param = sum(p.numel() for p in model.parameters())
+    if verbose:
+        print(f"==> Number of model parameters: {param}")
+    train_dataset = ImageFilterStream(config.train_data)
+    valid_dataset = ImageFilterStream(config.valid_data)
+    last_step_id = 0
+    resize_init = config.train_data.resize_base
+    crop_init = config.train_data.crop_size
+    trainer = SimpleTrainer(
+        config=config.train,
+        model=model,
+        train_dataset=train_dataset,
+        valid_dataset=valid_dataset,
+        verbose=verbose,
+    )
+    for _ in range(config.num_resolutions):
+        resize_init *= 2
+        crop_init *= 2
+        # ---
+        train_dataset.update_resolution(resize_init, crop_init)
+        next(trainer.train_loader)
+        # ---
+        config.train.batch_size //= 2
+        trainer.step_id = last_step_id
+        trainer.train()
+        last_step_id = trainer.step_id
+        config.train.min_iterations += last_step_id
+    return model
+
+
 def flatten_dict(d: dict, parent_key: str = "", sep: str = "."):
     items = []
     for k, v in d.items():
@@ -55,42 +96,13 @@ def worker_func(run_group, config: Config):
             group=run_group,
             config=flat_config,
         )
-    model = FilterNet(config.model)
-    param = sum(p.numel() for p in model.parameters())
-    print(f"==> Number of model parameters: {param}")
-    train_dataset = ImageFilterStream(config.train_data)
-    valid_dataset = ImageFilterStream(config.valid_data)
-    last_step_id = 0
-    resize_init = config.train_data.resize_base
-    crop_init = config.train_data.crop_size
-    trainer = SimpleTrainer(
-        config=config.train,
-        model=model,
-        train_dataset=train_dataset,
-        valid_dataset=valid_dataset,
-    )
-    for _ in range(config.num_resolutions):
-        resize_init *= 2
-        crop_init *= 2
-        # ---
-        train_dataset.update_resolution(resize_init, crop_init)
-        next(trainer.train_loader)
-        # ---
-        config.train.batch_size //= 2
-        trainer.step_id = last_step_id
-        trainer.train()
-        last_step_id = trainer.step_id
-        config.train.min_iterations += last_step_id
+    train_model(config)
     if wandb is not None:
         wandb.finish()
 
 
 def main(config_file: str = None, **overrides):
-    config: Config = OmegaConf.structured(Config)
-    if config_file is not None:
-        config = OmegaConf.merge(config, OmegaConf.load(config_file))
-    config = OmegaConf.merge(config, overrides)
-    config = OmegaConf.create(config)
+    config: Config = load_config(config_file, overrides)
 
     run_group = config.experiment_name or str(uuid4())
     if config.num_parallel_runs == 0:
