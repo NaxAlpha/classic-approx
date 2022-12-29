@@ -43,11 +43,14 @@ class FilterBlock(nn.Module):
         self.rezero = config.rezero
         self.reskip = config.reskip
         padding = config.kernel_size // 2
-        self.conv = nn.Conv2d(
-            config.capacity,
-            config.capacity,
-            config.kernel_size,
-            padding=padding,
+        self.conv = nn.Sequential(
+            nn.Conv2d(
+                config.capacity,
+                config.capacity,
+                config.kernel_size,
+                padding=0,
+            ),
+            nn.ConstantPad2d(padding, 0),
         )
         self.norm = nn.GroupNorm(1, config.capacity)
         self.relu = ACTIVATION[config.activation]()
