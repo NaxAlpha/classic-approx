@@ -205,8 +205,11 @@ class SimpleTrainer:
 
         self.log_images(*batch, outputs.cpu())
 
-    def train(self):
-        self.progress = tqdm()
+    def train(self, desc=None):
+        self.progress = tqdm(
+            desc=desc,
+            total=self.config.max_iterations,
+        )
         self.model.train()
         for _ in range(self.config.max_iterations):
             if (

@@ -62,7 +62,7 @@ def train_model(config: Config, verbose: bool = True):
         valid_dataset=valid_dataset,
         verbose=verbose,
     )
-    for _ in range(config.num_resolutions):
+    for i in range(config.num_resolutions):
         resize_init *= 2
         crop_init *= 2
         # ---
@@ -71,7 +71,9 @@ def train_model(config: Config, verbose: bool = True):
         # ---
         config.train.batch_size //= 2
         trainer.step_id = last_step_id
-        trainer.train()
+        trainer.train(
+            desc=f"Training {i + 1}/{config.num_resolutions}",
+        )
         last_step_id = trainer.step_id
         config.train.min_iterations += last_step_id
     return model
