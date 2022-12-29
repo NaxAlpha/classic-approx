@@ -80,7 +80,7 @@ train:                      # configuration for training
 
 ## Demo Outputs
 
-Sobel 3x3:
+### Sobel 3x3:
 
 <figure>
   <img
@@ -91,9 +91,7 @@ Sobel 3x3:
   </figcaption>
 </figure>
 
----
-
-Sobel 5x5 with Canny:
+### Sobel 5x5 with Canny:
 
 <figure>
   <img
@@ -104,9 +102,7 @@ Sobel 5x5 with Canny:
   </figcaption>
 </figure>
 
----
-
-Random Sobel-like filter:
+### Random Sobel-like filter:
 
 <figure>
   <img
@@ -117,20 +113,14 @@ Random Sobel-like filter:
   </figcaption>
 </figure>
 
----
-
-Loss of multiple runs:
+### Loss of multiple runs:
 
 ![Loss](images/loss.png)
 
----
-
-Train vs. Validation Loss:
+### Train vs. Validation Loss:
 
 ![Train vs. Validation Loss](images/loss2.png)
 
----
-
-Loss curve confidence interval:
+### Loss curve confidence interval:
 
 ![Loss curve confidence interval](images/loss3.png)
