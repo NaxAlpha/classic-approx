@@ -12,5 +12,5 @@ image = np.array([
 out1 = cv2.Sobel(image, cv2.CV_32F, 0, 1, ksize=3).astype(np.float32)
 out2 = cv2.Sobel(image, cv2.CV_32F, 1, 0, ksize=3).astype(np.float32)
 out3 = np.sqrt(out1**2 + out2**2)
-# out4 = (out3) / (out3.max() + 1e-8)
+out4 = (out3) / (out3.max() + 1e-8)
 print(out3)
