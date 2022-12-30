@@ -266,8 +266,11 @@ train:                      # configuration for training
   - [ ] CPU Dockerfile
   - [ ] GPU Dockerfile
   - [ ] ONNX Export
+  - [ ] CI/CD for docker image
   - [ ] Kubernetes Training
+  - [ ] CI/CD for training
   - [ ] Kubernetes Inference
+  - [ ] CI/CD for inference/deployment
 - Docs:
   - [x] Basic Docs (this README)
   - [ ] Docs for Running Docker
