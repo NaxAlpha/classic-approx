@@ -218,8 +218,11 @@ train:                      # configuration for training
   - [x] Configuration Management
   - [x] Basic CLI for Experimentation
   - [x] Basic CLI for Training & Inference
+  - [ ] Auto Save Configuration & model for each run
+  - [ ] Local run grouping for experiments
+  - [ ] [Better logger](https://github.com/Delgan/loguru)
 - Ops:
-  - [x] CPU Dockerfile
+  - [-] CPU Dockerfile
   - [ ] GPU Dockerfile
   - [ ] Docs for Running Docker
   - [ ] Kubernetes Training
