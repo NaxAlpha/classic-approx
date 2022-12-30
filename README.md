@@ -2,6 +2,46 @@
 
 This repo contains the code for various experiments on approximating the classical computer vision algorithms using deep learning. See [Demo Outputs](#demo-outputs) for results.
 
+## Answers to the Questions
+
+- **What if the image is really large or not of a standard size?**
+  
+    The model is extremely optimized for number of parameters, speed and memory usage (not training time). It requires 130 MegaFlops for inference on 224x224 image. The memory footprint is also very tiny. 4096x4096 image requires ~4GB of peak GPU memory. But if the images are larger than 8192x8192, they might not fit in most GPUs with 16GB memory so the image will need to be cropped.
+
+    Also, the current model does not use any down/up sample layers to image of any size can be used.
+
+- **What should occur at the edges of the image?**
+
+    After testing `scripts/test_sobel.py` I realized cv2.Sobel first applies Sobel on the image and then padds the output with zeros. The normal conv layers in PyTorch do the opposite, so I inverted this process and now it should work as expected.
+
+- **Are you using a fully convolutional architecture?**
+
+    Yes, it is a fully convolutional architecture. There are no fully connected layers as they are not needed in this case.
+
+- **Are there optimizations built into your framework of choice (e.g. Pytorch) that can make this fast?**
+
+    There can be various optimizations done for this. I personally went for inference & model size optimization. Further optimizations can be achieved via `torch.jit` and `torch.quantization`. There are also techniques for network pruning which can help accelerate training of model on larger size and optimizing it for inference later.
+
+- **What if you wanted to optimize specifically for model size?**
+
+    The model is already very optimized for model size. It has 2505 parameters which are ~10KB in size. Further optimizations can be done using hyperparameter search, quantization and pruning.
+
+- **How do you know when training is complete?**
+
+    After many tests, I found out that a *validation loss* where `l2 < 0.005` is a good indicator that the model has generalized very well. Since the size of the model is very small, model cannot easily overfit and given the almost endless supply of imagenet images, the loss threshold is a very good indicator for convergence. However; to get much better approximation one can set this value to `0.001` at the cost of longer training time.
+
+- **What is the benefit of a deeper model in this case? When might there be a benefit for a deeper model (not with a sobel kernel but generally when thinking about image to image transformations)?**
+
+    Deeper model would converge way faster but there are a few issues here. It has higher possibility of overfitting especially when the dataset is small. For simple filter transformations, it would not make much sense to have huge models doing the same work. In some cases, it might require much longer (time) to converge. Also, models with downsample and upsample layers would require images to be multiple of a certain number. 
+
+    However; in general, for much complex transformations, bigger models would be a better choice. While the current problem is where is information of the image is reduced, so this type of filters can be easily be fit with smaller models. But when we need to generate new information like if we reverse the problem, i.e.,  generating image from sobel output, then a deeper model is a must requirement.
+
+- **Generalization to random filters & Limitations**
+
+    This code implements 2 variations of sobel (Simple Sobel 3x3, Sobel 5x5 with Canny) and 2 variations of random filter (random conv and random sobel-like conv). The current model generalizes very well to all of them. 
+
+    The limitation of this model in general is that it uses GELU activation which approximates the output and is not the exact replica of that. Secondly, the capacity of model is limited right now. If we want to fit more complex filters, we might want to implement a deeper network with potentially down sample layers.
+
 ## Usage
 
 Following is setup for running on local machine. 
@@ -221,9 +261,11 @@ train:                      # configuration for training
   - [ ] Auto Save Configuration & model for each run
   - [ ] Local run grouping for experiments
   - [ ] [Better logger](https://github.com/Delgan/loguru)
+  - [ ] Support for extremely large images
 - Ops:
   - [ ] CPU Dockerfile
   - [ ] GPU Dockerfile
+  - [ ] ONNX Export
   - [ ] Kubernetes Training
   - [ ] Kubernetes Inference
 - Docs:
