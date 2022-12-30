@@ -218,15 +218,15 @@ train:                      # configuration for training
   </figcaption>
 </figure>
 
-### Loss of multiple runs:
+### Loss of multiple runs, stop loss (smooth) vs validation loss l2:
 
-![Loss](images/loss.png)
+![Loss](images/loss1.png)
 
-### Train vs. Validation Loss:
+### Train Losses vs Validation Losses vs The effect of Learning Rate:
 
 ![Train vs. Validation Loss](images/loss2.png)
 
-### Loss curve confidence interval:
+### Train and Validation Loss curve intervals:
 
 ![Loss curve confidence interval](images/loss3.png)
 
