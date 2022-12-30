@@ -6,13 +6,13 @@ This repo contains the code for various experiments on approximating the classic
 
 - **What if the image is really large or not of a standard size?**
   
-    The model is extremely optimized for number of parameters, speed and memory usage (not training time). It requires 130 MegaFlops for inference on 224x224 image. The memory footprint is also very tiny. 4096x4096 image requires ~4GB of peak GPU memory. But if the images are larger than 8192x8192, they might not fit in most GPUs with 16GB memory so the image will need to be cropped.
+    The model is extremely optimized for number of parameters, speed and memory usage (not training time). It requires 130 MegaFlops for inference on 224x224 image. The memory footprint is also very tiny. 4096x4096 image requires ~4GB of peak GPU memory. But if the images are larger than 8192x8192, they might not fit in most GPUs with 16GB memory so the image will need to be splitted and rejoined.
 
-    Also, the current model does not use any down/up sample layers to image of any size can be used.
+    Also, the current model does not use any down/up sample layers so the image of any size can be used.
 
 - **What should occur at the edges of the image?**
 
-    After testing `scripts/test_sobel.py` I realized cv2.Sobel first applies Sobel on the image and then padds the output with zeros. The normal conv layers in PyTorch do the opposite, so I inverted this process and now it should work as expected.
+    After testing `scripts/test_sobel.py` I realized cv2.Sobel first applies Sobel on the image and then padds the output with zeros. The normal conv layers in PyTorch do the opposite, so I inverted this process (in `clapp/model.py`) and now it approximates the results better.
 
 - **Are you using a fully convolutional architecture?**
 
@@ -20,15 +20,17 @@ This repo contains the code for various experiments on approximating the classic
 
 - **Are there optimizations built into your framework of choice (e.g. Pytorch) that can make this fast?**
 
-    There can be various optimizations done for this. I personally went for inference & model size optimization. Further optimizations can be achieved via `torch.jit` and `torch.quantization`. There are also techniques for network pruning which can help accelerate training of model on larger size and optimizing it for inference later.
+    There can be various optimizations done for this like training time, inference time, model size and accuracy, etc. I personally did inference speed & model size optimization by educated guesses of hyperparameters. Libraries like `optuna` can be used to specify the optimization objective for hyperparameter search (in TODO).
+    
+    Further out-of-the-box optimizations can be achieved via `torch.jit` and `torch.quantization`. There are also techniques for network pruning which can help accelerate training of model on larger size and optimizing it for inference later. *PyTorch 2.0* has this new compile mode that can potentially speed up both training and inference.
 
 - **What if you wanted to optimize specifically for model size?**
 
-    The model is already very optimized for model size. It has 2505 parameters which are ~10KB in size. Further optimizations can be done using hyperparameter search, quantization and pruning.
+    The model is already very optimized for model size. It has ~2.5K parameters which are ~10KB in size. Further optimizations can be done using hyperparameter search, quantization and pruning.
 
 - **How do you know when training is complete?**
 
-    After many tests, I found out that a *validation loss* where `l2 < 0.005` is a good indicator that the model has generalized very well. Since the size of the model is very small, model cannot easily overfit and given the almost endless supply of imagenet images, the loss threshold is a very good indicator for convergence. However; to get much better approximation one can set this value to `0.001` at the cost of longer training time.
+    After many tests, I found out that a *validation loss* of `l2 < 0.005` is a good indicator that the model has generalized very well. Since the size of the model is very small, model cannot easily overfit and given the almost endless supply of imagenet images, the loss threshold is a very good indicator for convergence. However; to get much better approximation one can set this value to `0.001` at the cost of longer training time.
 
 - **What is the benefit of a deeper model in this case? When might there be a benefit for a deeper model (not with a sobel kernel but generally when thinking about image to image transformations)?**
 
@@ -41,6 +43,16 @@ This repo contains the code for various experiments on approximating the classic
     This code implements 2 variations of sobel (Simple Sobel 3x3, Sobel 5x5 with Canny) and 2 variations of random filter (random conv and random sobel-like conv). The current model generalizes very well to all of them. 
 
     The limitation of this model in general is that it uses GELU activation which approximates the output and is not the exact replica of that. Secondly, the capacity of model is limited right now. If we want to fit more complex filters, we might want to implement a deeper network with potentially down sample layers.
+
+- **Some techniques and tricks implemented in this code**
+
+    I have implemented multiple tricks for various optimizations. Some of them are the following:
+
+    - Data Feeding: Since data is directly being streamed from the internet, it would be useless to just use it once and throw away. A paper suggested to keep using preprocessed data multiple times is better than to keep the GPU waiting for new data. So, `clapp/data.py`, I implemented data buffering which maintains a good buffer of data and keeps the GPU busy. This also helps in reducing the training time.
+
+    - Model Optimization: I am implemented some of the very recent literature for the optimization of model in `clapp/model.py` like I found per channel ReZero layer and norm before conv to be very helpful. Also, I created a new layer `ReSkip` layer which is like ReZero but applies to the skip connection instead.
+
+    - Training Optimization: In `clapp/train.py`, I have also included `log_cosh_loss` which is also very good. EMA for stopping training is helpful to avoid noisy premature training stoppage. I also found cosine annealing lr scheduler to be very useful for model to avoid getting stuck in local minima (as shown by the loss curves below). Another useful thing was progressive training on increasing image size. Since, Sobel output is mostly black, when training on larger images, model would usually get stuck outputting zeros but with smaller images, it converged really quickly.
 
 ## Usage
 
