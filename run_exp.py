@@ -40,7 +40,9 @@ def load_config(config_file: str, overrides: dict) -> Config:
     config = OmegaConf.structured(Config)
     if config_file is not None:
         config = OmegaConf.load(config_file)
-    config = OmegaConf.merge(config, overrides)
+    dot_list = [f'{k}={v}' for k, v in overrides.items()]
+    override = OmegaConf.from_dotlist(dot_list)
+    config = OmegaConf.merge(config, override)
     config = OmegaConf.create(config)
     return config
 
@@ -105,6 +107,9 @@ def worker_func(run_group, config: Config):
 
 def main(config_file: str = None, **overrides):
     config: Config = load_config(config_file, overrides)
+    print("=== Config ===")
+    print(OmegaConf.to_yaml(config))
+    print("=============")
 
     run_group = config.experiment_name or str(uuid4())
     if config.num_parallel_runs == 0:
