@@ -88,9 +88,9 @@ train_data:                 # configuration for training data
   split: train              # which split to use
   min_buffer: 2000          # minimum buffer size before starting training
   max_buffer: 8000          # maximum buffer size to keep in memory
-  resize_base: 48           # initial resolution for image to be resized, will double for each resolution given by `num_resolutions`
+  resize_base: 96           # initial resolution for image to be resized, will double for each resolution given by `num_resolutions`
   buffer_delay: 0.1         # Delay before pushing to buffer when it is full
-  crop_size: 32             # initial crop size for image to be cropped, will double for each resolution given by `num_resolutions`
+  crop_size: 64             # initial crop size for image to be cropped, will double for each resolution given by `num_resolutions`
   image_key: image          # name of the key in the dataset that contains the image
   target_filter: sobel_3    # filter to apply to the image to get the target, see `clapp/data.py` for more details
 valid_data:                 # configuration for validation data
@@ -222,13 +222,13 @@ train:                      # configuration for training
   - [ ] Local run grouping for experiments
   - [ ] [Better logger](https://github.com/Delgan/loguru)
 - Ops:
-  - [-] CPU Dockerfile
+  - [ ] CPU Dockerfile
   - [ ] GPU Dockerfile
-  - [ ] Docs for Running Docker
   - [ ] Kubernetes Training
   - [ ] Kubernetes Inference
 - Docs:
   - [x] Basic Docs (this README)
+  - [ ] Docs for Running Docker
   - [ ] Detailed docs for each module
-  - [ ] Report on the experiments
-  - [ ] Ablation study generation
+  - [ ] Detailed report on the experiments and model optimization
+  - [ ] Ablation studies
