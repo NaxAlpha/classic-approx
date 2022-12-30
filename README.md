@@ -36,7 +36,7 @@ This repo contains the code for various experiments on approximating the classic
 
     Deeper model would converge way faster but there are a few issues here. It has higher possibility of overfitting especially when the dataset is small. For simple filter transformations, it would not make much sense to have huge models doing the same work. In some cases, it might require much longer (time) to converge. Also, models with downsample and upsample layers would require images to be multiple of a certain number. 
 
-    However; in general, for much complex transformations, bigger models would be a better choice. While the current problem is where is information of the image is reduced, so this type of filters can be easily be fit with smaller models. But when we need to generate new information like if we reverse the problem, i.e.,  generating image from sobel output, then a deeper model is a must requirement.
+    However; in general, for much complex transformations, bigger models would be a better choice. While the current problem is where the information of the image is reduced, this type of filters can be easily be fit with smaller models. But when we need to generate new information like if we reverse the problem, i.e.,  generating image from sobel output, then a deeper model is a must requirement.
 
 - **Generalization to random filters & Limitations**
 
@@ -50,9 +50,9 @@ This repo contains the code for various experiments on approximating the classic
 
     - Data Feeding: Since data is directly being streamed from the internet, it would be useless to just use it once and throw away. A paper suggested to keep using preprocessed data multiple times is better than to keep the GPU waiting for new data. So, `clapp/data.py`, I implemented data buffering which maintains a good buffer of data and keeps the GPU busy. This also helps in reducing the training time.
 
-    - Model Optimization: I am implemented some of the very recent literature for the optimization of model in `clapp/model.py` like I found per channel ReZero layer and norm before conv to be very helpful. Also, I created a new layer `ReSkip` layer which is like ReZero but applies to the skip connection instead.
+    - Model Optimization: I have implemented some of the very recent literature for the optimization of model in `clapp/model.py` like I found per channel ReZero layer and norm before conv to make training really fast. Also, I created a new layer `ReSkip` layer which is like ReZero but applies to the skip connection instead.
 
-    - Training Optimization: In `clapp/train.py`, I have also included `log_cosh_loss` which is also very good. EMA for stopping training is helpful to avoid noisy premature training stoppage. I also found cosine annealing lr scheduler to be very useful for model to avoid getting stuck in local minima (as shown by the loss curves below). Another useful thing was progressive training on increasing image size. Since, Sobel output is mostly black, when training on larger images, model would usually get stuck outputting zeros but with smaller images, it converged really quickly.
+    - Training Optimization: In `clapp/train.py`, I have also included `log_cosh_loss` which I found to be a good loss. EMA for l2 loss is helpful to avoid premature stoppage of training due to noise. I also found cosine annealing lr scheduler to be very useful for model to avoid getting stuck in local minima (as shown by the loss curves below). Another useful thing was progressive training by increasing image size. Since, Sobel output is mostly black, when training on larger images, model would usually get stuck outputting zeros but with smaller images, it converged really quickly.
 
 ## Usage
 
